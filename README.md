@@ -1,14 +1,58 @@
-# Ambari Install Guide Step-by-step
+# Ambari Install Guide Step-by-Step
 
-> ## Step-by-step guide for Ambari Agent/Server deployment
+> ## Step-by-Step Guide for Ambari Agent/Server Deployment
+>
+> *Ambari Server version: 2.7.3.0*
 
-## Docker Registry: Download Debian image
+## Docker Registry: Download Debian Image
 
 ```bash
 
 docker pull debian:latest
 
-docker run -it --name ambari-node -h ambari-node -p 8000:8000 -v /home/i-am/ambari/server-logs/:/var/log/ambari-server -v /home/i-am/ambari/agent-logs:/var/log/ambari-agent debian:ambari
+docker run -it --name ambari-node -h ambari \
+--cpus=1 \
+--memory="1024MB" --memory-swap="2048MB" \
+-p 8000:8000 \
+-v /home/i-am/ambari/server-logs/:/var/log/ambari-server \
+-v /home/i-am/ambari/agent-logs:/var/log/ambari-agent \
+--net=hadoop-cluster --ip="192.168.0.100" \
+--add-host="master:192.168.0.1" \
+--add-host="slave-1:192.168.0.2" \
+--add-host="slave-2:192.168.0.3" \
+--add-host="slave-3:192.168.0.4" \
+debian:ambari
+
+# !!!Important: In order to Ambari being able to recognize agents:
+# Agents must be declared in Ambari Server: '/etc/hosts'  
+# e.g 192.168.0.1   master, ...
+
+# Agents should have declared Ambari Server too: '/etc/hosts' 
+# e.g: 192.168.0.100  ambari
+
+# SSH Passwordless must exists between Ambari Server <---> Ambari Agents
+# Read next section: 'Install Passwordless SSH'
+
+```
+
+## Install Passwordless SSH
+
+```bash
+
+sudo apt install wget openssh-server openssh-client
+
+ssh-keygen -t rsa
+
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+ssh localhost
+
+```
+
+```bash
+
+# Master Node (Active TTY terminal)
+ssh-copy-id -i $HOME/.ssh/id_rsa.pub slave-1
 
 ```
 
@@ -17,7 +61,7 @@ docker run -it --name ambari-node -h ambari-node -p 8000:8000 -v /home/i-am/amba
 > Default port is *'8080'*, preferred *'8000'*
 >
 
-### Published *logs* directories
+### Published *Logs* Directories
 
 > *Agent (logs)*: **/var/log/ambari-agent**
 >
@@ -25,13 +69,35 @@ docker run -it --name ambari-node -h ambari-node -p 8000:8000 -v /home/i-am/amba
 
 ---
 
-## Download Ambari repositories
+## Download Ambari Repositories
 
 ```bash
 
 wget -O /etc/apt/sources.list.d/ambari.list http://public-repo-1.hortonworks.com/ambari/debian9/2.x/updates/2.7.3.0/ambari.list
 
-sudo apt-key adv --recv-keys --keyserver keyserver.debian.com B9733A7A07513CAD
+apt install gnupg2
+
+apt-key adv --recv-keys --keyserver keyserver.debian.com B9733A7A07513CAD
+
+```
+
+```bash
+
+apt update
+
+apt-cache showpkg ambari-server
+                     apt-cache showpkg ambari-agent
+                     apt-cache showpkg ambari-metrics-assembly
+
+apt install ambari-server
+
+```
+
+## Install *ambari-agent* in Master Node
+
+```bash
+
+apt install ambari-agent
 
 ```
 
@@ -42,15 +108,15 @@ sudo apt-key adv --recv-keys --keyserver keyserver.debian.com B9733A7A07513CAD
 ### Ambari Agent default settings (**/etc/ambari-agent/conf/ambari-agent.ini**)
 
 ```bash
-sudo apt update
+apt update
 
-sudo apt install ambari-agent
+apt install ambari-agent
 
 nano /etc/ambari-agent/conf/ambari-agent.ini
 
 # Agent Settings
 # [server]
-# hostname=<your.ambari.server.hostname>
+# hostname=<your.ambari.server.hostname> e.g 'ambari'
 # url_port=8440
 # secured_url_port=8441
 
@@ -62,25 +128,13 @@ nano /etc/ambari-agent/conf/ambari-agent.ini
 
 ### Ambari Server default settings (**/etc/ambari-server/conf/ambari.properties**)
 
-```bash
-
-sudo apt update
-
-apt-cache showpkg ambari-server
-                     apt-cache showpkg ambari-agent
-                     apt-cache showpkg ambari-metrics-assembly
-
-sudo apt install ambari-server
-
-```
-
 ---
 
 ## Ambari Server: Setup options
 
 ```bash
 # Install JDBC library (default: PostgreSQL Embedded Mode)
-sudo apt install -y libpostgresql-jdbc-java
+apt install -y libpostgresql-jdbc-java
 ```
 
 ![PostgreSQL Library](./images/postgresql-library.png)
@@ -125,7 +179,7 @@ webapp.dir=/usr/lib/ambari-server/web
 
 ---
 
-## **(Optional)** Ambari Server: Solve ports conflicts
+## **(Optional)** Ambari Server: Solve Ports Conflicts
 
 ```bash
 
@@ -140,7 +194,7 @@ ambari-server start
 
 ---
 
-## Ambari Server: Start instance
+## Ambari Server: Start Instance
 
 ```bash
 # Start server instance
@@ -148,9 +202,15 @@ ambari-server start
 
 ```
 
+### *Check Ambari Version*
+
+```bash
+cat /var/lib/ambari-server/resources/version # e.g '2.7.3.0'
+```
+
 ---
 
-## Ambari Server: login page
+## Ambari Server: Login page
 
 ![Ambari Server Login Page](./images/ambari-server-login-page.png)
 
@@ -163,9 +223,81 @@ Password: admin
 
 ---
 
-## Admin Section
+## Ambari Admin Section
 
-![Ambari Server Admin Section](./images/ambari-server-admin-section.png)
+![Ambari Admin Section](./images/ambari-server-admin-section.png)
+
+---
+
+## Ambari Cluster Creation
+
+![Ambari Create Cluster](./images/ambari-create-cluster.png)
+
+---
+
+## Ambari Repository Selection
+
+![Ambari Repository Selection](./images/ambari-repository-selection.png)
+
+---
+
+## Ambari Server Nodes Sign-In
+
+![Ambari Nodes Sign-In](./images/ambari-agents-registration.png)
+
+---
+
+## Ambari Cluster Components
+
+![Ambari Cluster Components](./images/ambari-cluster-components.png)
+
+---
+
+## Ambari Server Suggested Roles (Slaves/Secondary Nodes)
+
+![Ambari Suggested Roles in Slaves](./images/ambari-suggested-roles-slaves.png)
+
+---
+
+## Ambari Server Suggested Services (Slaves/Secondary Nodes)
+
+![Ambari Suggested Services in Slaves](./images/ambari-suggested-services-slaves.png)
+
+---
+
+## Ambari Customized Services
+
+![Ambari Customized Services](./images/ambari-customize-services.png)
+
+---
+
+## Ambari Directories Selection
+
+![Ambari Directories Selection](./images/ambari-directories-selection.png)
+
+---
+
+## Ambari Account Settings
+
+![Ambari Account Settings](./images/ambari-account-settings.png)
+
+---
+
+## Ambari All Configurations
+
+![Ambari All Configurations](./images/ambari-all-configurations.png)
+
+---
+
+## Ambari Review Settings
+
+![Ambari Review Settings](./images/ambari-review-settings.png)
+
+---
+
+## Ambari Install Progress
+
+![Ambari Install Progress](./images/ambari-install-progress.png)
 
 ---
 
