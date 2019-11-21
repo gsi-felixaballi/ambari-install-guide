@@ -151,9 +151,11 @@ ambari-server setup
 
 ![Setup Steps](./images/ambari-server-setup-options-2.png)
 
-## *Ambari Server: default settings*
+## *Settings: **/etc/ambari-server/conf/ambari.properties***
 
 ```bash
+
+# Path: /etc/ambari-server/conf/ambari.properties
 
 # ...
 ambari-server.user=root
